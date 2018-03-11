@@ -228,6 +228,9 @@ if ($Experimental) { $cakeArguments += "-experimental" }
 if ($Mono) { $cakeArguments += "-mono" }
 $cakeArguments += $ScriptArgs
 
+# --settings_skipverification=true required until https://github.com/cake-contrib/Cake.Codecov/issues/17 is fixed
+$cakeArguments += "--settings_skipverification=true"
+
 # Start Cake
 Write-Host "Running build script..."
 &$CAKE_EXE $cakeArguments

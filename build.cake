@@ -1,18 +1,19 @@
-#addin "nuget:?package=Cake.Docker&version=0.8.2"
-#addin "nuget:?package=Cake.NPM&version=0.12.1"
+#addin "nuget:?package=Cake.Docker&version=0.9.0"
+#addin "nuget:?package=Cake.NPM&version=0.13.0"
 #addin "nuget:?package=Cake.Codecov&version=0.3.0"
+#addin "nuget:?package=Cake.MiniCover&version=0.26.6"
 
 #tool "nuget:?package=Codecov&version=1.0.3"
 
 #l "./build/AddMigration.cake"
-#l "./build/util.cake"
+
+SetMiniCoverToolsProject("./minicover/minicover.csproj");
 
 //////////////////////////////////////////////////////////////////////
 // ARGUMENTS
 //////////////////////////////////////////////////////////////////////
 
 const string SOLUTION = "./Athena.sln";
-const string MINICOVER = "./minicover/minicover.csproj";
 
 var target = Argument("target", "Default");
 var configuration = Argument("configuration", "Release");
@@ -38,13 +39,7 @@ Task("Clean::Dist")
 Task("Clean::Test")
     .Does(() => 
 {
-    if(DirectoryExists("_tests"))
-    {
-        DeleteDirectory("_tests", new DeleteDirectorySettings
-        {
-            Recursive = true
-        });
-    }
+    DeleteFiles("*coverage*");
 });
 
 Task("Clean")
@@ -68,7 +63,6 @@ Task("Restore::Nuget")
     .Does(() =>
 {
     DotNetCoreRestore(SOLUTION);
-    DotNetCoreRestore(MINICOVER);
 });
 
 Task("Restore")
@@ -102,10 +96,12 @@ Task("Test::Prepare")
     .IsDependentOn("Build")
     .Does(() => 
 {
-    EnsureDirectoryExists("./_tests");
-
-    DotNetCoreTool(MINICOVER, "minicover", "instrument --workdir ../ --assemblies test/**/bin/**/*.dll --exclude-assemblies test/**/bin/**/*Test*.dll --sources src/**/*.cs");
-    DotNetCoreTool(MINICOVER, "minicover", "reset");
+    MiniCoverInstrument(
+        new MiniCoverSettings()
+            .WithAssembliesMatching("./test/**/*.dll")
+            .WithSourcesMatching("./src/**/*.cs")
+    );
+    MiniCoverReset();
 });
 
 Task("Test::Unit")
@@ -167,11 +163,16 @@ Task("Test")
     .IsDependentOn("Test::Integration")
     .Does(() =>
 {
-    DotNetCoreTool(MINICOVER, "minicover", "uninstrument --workdir ../");
+    MiniCoverUninstrument();
 
     Information("Coverage Results: ");
-    AllowFailure(() => DotNetCoreTool(MINICOVER, "minicover", $"report --workdir ../ --threshold {coverageThreshold.ToString("0.00")}"));
-    AllowFailure(() => DotNetCoreTool(MINICOVER, "minicover", $"opencoverreport --workdir ../ --output ./_tests/coverage.xml --threshold {coverageThreshold.ToString("0.00")}"));
+            
+    MiniCoverReport(
+        new MiniCoverSettings()
+            .GenerateReport(ReportType.CONSOLE | ReportType.OPENCOVER)
+            .WithThreshold(coverageThreshold)
+            .WithNonFatalThreshold()
+    );
 });
 
 Task("Dist")
@@ -210,7 +211,7 @@ Task("CodeCov::Publish")
     .IsDependentOn("Test")
     .Does(() =>
 {
-    Codecov("./_tests/coverage.xml");
+    Codecov("./coverage-opencover.xml");
 });
 
 //////////////////////////////////////////////////////////////////////

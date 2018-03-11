@@ -97,5 +97,6 @@ fi
 if $SHOW_VERSION; then
     exec mono "$CAKE_EXE" -version
 else
-    exec mono "$CAKE_EXE" $SCRIPT -verbosity=$VERBOSITY -configuration=$CONFIGURATION -target=$TARGET $DRYRUN "${SCRIPT_ARGUMENTS[@]}"
+    # --settings_skipverification=true required until https://github.com/cake-contrib/Cake.Codecov/issues/17 is fixed
+    exec mono "$CAKE_EXE" $SCRIPT -verbosity=$VERBOSITY -configuration=$CONFIGURATION -target=$TARGET $DRYRUN "${SCRIPT_ARGUMENTS[@]}" --settings_skipverification=true
 fi
